@@ -19,8 +19,7 @@ This program supports two ways for acquiring images from webcam
 a few webcam.
 2-cvcam: if you have built the cvcam interface in the OpenCV you can 
 use this library for supporting a wider range of webcams.
-for using cvcam library just uncomment the following macro in pcheader.h
-#define USE_CVCAM
+for using cvcam library just uncomment the following macro in pcheader.h #define USE_CVCAM
 for testing the cvcam library, a small program is provided in cmdcam directory.
 
 
@@ -42,10 +41,6 @@ by issuing the command :
 stfeatures or stfeatures -h , you can get a list of parameters and options
 
 
-
-In the case of any question just send an email to:
-
-	masoud.alipour@epfl.ch
 
 
 
