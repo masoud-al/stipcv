@@ -1,0 +1,53 @@
+linux cvcam
+
+
+saving features
+checking timing and visualization
+
+JUCE/OpenGL ptviewr
+
+
+
+libsvm/local kernel
+
+confusion matrix
+
+
+AMI Corpus
+
+
+
+-prb: check small buffer size for small tau e.g. 1
+
+remove all memcpy
+check cvmSet
+check sorted filter
+double check temporalconv
+double check harrisfunction
+role of delay?
+
+
+-use OpenMP and intel compiler for benefiting from multicore
+-gray scale conversion
+-two types of smoothing
+	1-using FFT
+	2-separable convolution
+
+-playing video file in correct timing (important?)
+-visualizing Hbuffer
+-many steps can be paralleized 
+-which one is enough and faster IPL_DEPTH_32F, IPL_DEPTH_64F  or even integer type
+-CV_TURN_ON_IPL_COMPATIBILITY ?
+-how to get number of total frame and FPS in case of input file and video stream
+- //*** scale 1st order partial derivatives for the correspondance with Matlab 0.25 0.5 ???
+-Q: how discrete derivitives should be resacle in order to correspond continous deriverives? (sign and scale)
+
+- MATLAB colormap equivalent for OpenCV
+
+rules for pch
+==========================================
+put all frequently used header in pcheader.h
+for enabling pch, define USE_PCH in addition to compiler options for pch
+pch can be turned off by not defining USE_PCH
+VC++: when pch is enabled (/Y[cux]) all the cpp files should include pchheader
+------------------------------------------------------------------------------
