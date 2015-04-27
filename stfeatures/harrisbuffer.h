@@ -9,12 +9,10 @@
 
 class HarrisBuffer
 {
-public:
-	/*CvMat* SpatialMaskSeparable;	// one dimensional Guassian Mask 
-	CvMat* SpatialMask ; // two dimensional
+private:
 
-	CvMat* TemporalMask1;			
-	CvMat* TemporalMask2;*/
+	CvMat* normvec;
+	CvMat JetFilter;
 
 	std::vector<double> SpatialMaskSeparable;
 	std::vector<double> SpatialMask;
@@ -35,6 +33,8 @@ public:
 	STBuffer cttbuffer;	
 
 	STBuffer Hbuffer;
+
+	std::ofstream FeatureFile;
 
 	int iFrame;
 
@@ -67,7 +67,7 @@ public:
 
 	void GaussianSmoothingMul(IplImage* im1, IplImage* im2, IplImage* dst, double sigma);
 	void HarrisFunction(/*IplImage* cxx,IplImage* cxy,IplImage* cxt,IplImage* cyy,IplImage* cyt,IplImage* ctt,*/ double k, IplImage* dst);
-
+	void WriteFeatures(InterestPoint &ip);
 
 public:
 	
@@ -76,16 +76,21 @@ public:
 	double tau2;	
 	int delay;
 	double SignificantPointThresh;
+	int Border;
 
 	HarrisBuffer(void);
 	~HarrisBuffer(void);
 
 	IplImage* getHBufferImage(int type);
 
-	void Init(IplImage* firstfrm);
+	bool Init(IplImage* firstfrm, std::string fname);
 	void ProcessFrame(IplImage* frame);
 	void DetectInterestPoints(int border=0);
 	void DrawInterestPoints(IplImage* im);
+	int NumberOfDetectedIPs();
 };
+
+
+
 
 #endif //HARRISBUFFER_H

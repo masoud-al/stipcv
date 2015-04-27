@@ -53,11 +53,8 @@ std::vector<double> CVUtil::GaussianMask1D(double variance, int masksize, int sz
 	std::vector<double> mask;
 	for(int i=0;i<2*nnz+1;i++)
 		mask.push_back(0);
-	//CvMat *mask=cvCreateMat(1,2*nnz+1,DATATYPE); //prb: 32F assumption
 	for(x=-nnz; x<=nnz ; x++)
 		mask[x+nnz]=tmp[x+nnz];	
-		//CV_MAT_ELEM(mask,double,0,x+nnz)=tmp[x+nnz];		
-		//((float*)(mask->data.ptr))[x+nnz]=tmp[x+nnz];	
 
 	delete[] tmp;
 	return mask;

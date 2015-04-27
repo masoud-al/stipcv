@@ -1,7 +1,6 @@
 
 #include "pcheader.h"
 
-//#include <cctype.h>
 #include <cstdio>
 #include <cassert>
 
@@ -10,14 +9,14 @@
 #include "harrisbuffer.h"
 #include "cmdline.h"
 
-#define USE_CVCAM
+
 
 #ifdef USE_CVCAM
 #include "cvcam.h"
 #endif 
 
+std::string outfile="";
 CCmdLine cmdLine;
-int xx=0;
 bool show=true;
 bool Processing=false;
 IplImage* frame = 0;
@@ -32,17 +31,13 @@ IplImage* camimg = NULL;
 IplImage* gray = NULL;	
 double avg=0;
 int ifr=0;
+int TotalIPs=0;
+int nIPs=0;
 
 const int camresx[]={80,160,320,400,640};
 const int camresy[]={60,120,240,300,480};	
 int resid=1;
 
-
-CvScalar random_color(CvRNG* rng)
-{
-    int icolor = cvRandInt(rng);
-    return CV_RGB(icolor&255, (icolor>>8)&255, (icolor>>16)&255);
-}
 
 
 void ConvertRealImage(IplImage* im,IplImage* gray8u,IplImage* rgb8u)
@@ -71,30 +66,6 @@ void CapProperties( CvCapture* capture)
 }
 
 
-/*void drawst(IplImage* im)
-{
-
-		return;
-		CvRNG   rng = cvRNG((unsigned)-1);
-		int line_type = CV_AA; // change it to 8 to see non-antialiased graphics
-
-		int width=im->width;
-		int height=im->height;
-		//int width3 = width*3, height3 = height*3;
-
-		for (int i = 0; i< 2; i++)
-		{
-			CvPoint pt1;
-			pt1.x=i*20+10;//cvRandInt(&rng) % width3 - width;
-			pt1.y=i*20+10;//cvRandInt(&rng) % height3 - height;
-
-			cvCircle( im, pt1, cvRandInt(&rng)%300, random_color(&rng),
-					cvRandInt(&rng)%10-1, line_type, 0 );
-	
-		}
-}*/
-
-
 bool first=true;;
 
 void dostuff(IplImage *frm)
@@ -103,7 +74,8 @@ void dostuff(IplImage *frm)
 	if(first)
 	{	
 		first=false;
-		hb.Init(frm) ;
+		if(!hb.Init(frm,outfile))
+			exit(2);
 		gray = cvCreateImage(cvGetSize(frm), IPL_DEPTH_8U, 1);
 	}
 
@@ -115,7 +87,11 @@ void dostuff(IplImage *frm)
 	ifr++;
 	ft=t/(cvGetTickFrequency()*1000.);
 	avg=((ifr-1)* avg + ft)/ifr;
-	printf( "%d: Avg Time:%.1f - Avg FPS:%.1f  \n ",ifr, avg, 1000/avg);
+	printf("%4d: ",ifr);
+	nIPs=hb.NumberOfDetectedIPs();TotalIPs+=nIPs;
+	printf("IPs[this:%2d, total:%4d]",nIPs,TotalIPs);
+	printf(" - Perf: Time= %.1f  -  Avg Time=%.1f - Avg FPS=%.1f ", ft,avg, 1000/avg);
+	printf("\n");
 }
 
 void dovisstuff()
@@ -156,7 +132,7 @@ void grabframe(IplImage *frm)
 	}
 	else
 	{
-		printf("skiping frame %d\n",xx++);
+		printf("skiping frame \n");
 	}
 
 }
@@ -275,6 +251,8 @@ void ShowHelp()
 	printf("   -tau   : variance for space Gaussian smoothing (default=%.1f)\n",hb.tau2);
 	printf("   -kparam: K parameter in Harris function (default=%.5f)\n",hb.kparam);
 	printf("   -thresh: threshold for ommiting weak points (default=%.3e)\n",hb.SignificantPointThresh);
+	printf("		    (to get all interest points set to zero)\n");
+	printf("   -border: Omits interest, point border pixels in each boundary (default=%d)\n",hb.Border);
 	//printf("\t-lmax\t: method for local maximum (default=%.4f)\n",hb.kparam);
 	printf("\n");
 	printf("Other options:\n");
@@ -285,45 +263,13 @@ void ShowHelp()
 }
 int main( int argc, char** argv )
 {
-/*using namespace std;
-   using namespace stdext;
 
-   hash_map <int, int> hm1;
-   hash_map <int, int> :: const_iterator hm1_AcIter, hm1_RcIter;
-   typedef pair <int, int> Int_Pair;
-
-   hm1.insert ( Int_Pair ( 13, 0 ) );
-   hm1.insert ( Int_Pair ( -12, 1 ) );
-   hm1.insert ( Int_Pair ( 75, 2 ) );
-
-   hm1_RcIter = hm1.find( -12 );
-   cout << "The element of hash_map hm1 with a key of 2 is: "
-        << hm1_RcIter -> second << "." << endl;*/
-
-	/*HashVector<int> hv;
-	hv.push_back(7);
-	hv.push_back(-22);
-	hv.push_back(70);
-	hv.push_back(33);
-	int& x=hv[1];
-	hv[1]=5;
-	cout<<hv[1]<<std::endl;
-	cout<<hv[hv.getIndex(33)]<<std::endl;
-	cout<<hv[hv.getIndex(5)]<<std::endl;*/
-
-	//void cvConvertScale( const CvArr* src, CvArr* dst, double scale=1, double shift=0 );
-
-
-
-	//return 0;
-
-	//todo:call in X
-	//cvInitSystem
-
-	//wchar_t *CC=L"Salam";
-	//wprintf(CC);
-	
+#ifdef USE_CVCAM
 	bool cvcam=true;
+#else 
+	bool cvcam=false;
+#endif
+
 	
 	if (cmdLine.SplitLine(argc, argv) < 1)
 	{
@@ -332,7 +278,7 @@ int main( int argc, char** argv )
       exit(-1);
 	}
 
-	std::string infile,outfile,tmp;
+	std::string infile,tmp;
 	int cam=-1;
 	try
 	{
@@ -346,7 +292,7 @@ int main( int argc, char** argv )
 
 		if( cmdLine.HasSwitch("-f") && cmdLine.HasSwitch("-cam") )
 		{
-			std::cout<<"You can't specify both file and camera as input."<<std::endl;
+			std::cout<<"You can't specify both file and camera as input!"<<std::endl;
 			ShowHelp();
 			exit(-1);
 		}
@@ -380,7 +326,8 @@ int main( int argc, char** argv )
 		if(cmdLine.GetArgumentCount("-sigma")>0) hb.sig2 =  atof(cmdLine.GetArgument( "-sigma", 0 ).c_str());
 		if(cmdLine.GetArgumentCount("-tau")>0) hb.tau2 =  atof(cmdLine.GetArgument( "-tau", 0 ).c_str());
 		if(cmdLine.GetArgumentCount("-kparam")>0) hb.kparam =  atof(cmdLine.GetArgument( "-kparam", 0 ).c_str());
-		if(cmdLine.GetArgumentCount("-thresh")>0) hb.SignificantPointThresh =  atof(cmdLine.GetArgument( "-thres", 0 ).c_str());
+		if(cmdLine.GetArgumentCount("-thresh")>0) hb.SignificantPointThresh =  atof(cmdLine.GetArgument( "-thresh", 0 ).c_str());
+		if(cmdLine.GetArgumentCount("-border")>0) hb.Border =  atoi(cmdLine.GetArgument( "-border", 0 ).c_str());
 		
 		
 	}

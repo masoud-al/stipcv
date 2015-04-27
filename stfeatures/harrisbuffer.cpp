@@ -3,8 +3,48 @@
 #include "harrisbuffer.h"
 #include "cvutil.h"
 
-std::ofstream merd("merd.txt");
-std::ofstream ipts("ipts.txt");
+//std::ofstream logfile("log.txt");
+
+
+const int LengthFeatures=34;//length of feature vector
+const int SizeNeighb=125; //mask of 5x5x5 (vectorized)
+//JET filter computed in MATLAB
+double jet[LengthFeatures][SizeNeighb]={
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,-2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,-0.25,0,0,0,0,0,0,0,-0.25,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,0,0,0,0,0,0,0,0,-0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.25,0,0,0,0,0,0,0,0,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,-0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.25,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,-1,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0.5,0,0,1,0,-1,0,0,-0.5,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,1,-0.5,0,0,0,0,0,0,0,0.5,-1,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,1,0,-1,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,1,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,-1,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.125,0,0.125,0,0,0,0,0,0,0,0.125,0,-0.125,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.125,0,-0.125,0,0,0,0,0,0,0,-0.125,0,0.125,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,1,-0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5,-1,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,-4,0,0,0,0,6,0,0,0,0,-4,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,-0.25,0,0,-0.5,0,0.5,0,0,0,0,0,0,0,0.5,0,-0.5,0,0,-0.25,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-2,1,0,0,-2,4,-2,0,0,1,-2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,-0.5,0,0.5,-0.25,0,0,0,0,0,-0.25,0.5,0,-0.5,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-4,6,-4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,-0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.25,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,-0.25,0,0,-0.5,0,0.5,0,0,0.25,0,-0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.25,0,0.25,0,0,0.5,0,-0.5,0,0,-0.25,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0625,0,-0.125,0,0.0625,0,0,0,0,0,-0.0625,0,0.125,0,-0.0625,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.0625,0,0.125,0,-0.0625,0,0,0,0,0,0.0625,0,-0.125,0,0.0625,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,-0.5,0,0.5,-0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.25,0.5,0,-0.5,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,-2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-2,0,0,0,0,4,0,0,0,0,-2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,-2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,-0.25,0,0,0,0,0,0,0,-0.25,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0.5,0,0,0,0,0,0,0,0.5,0,-0.5,0,0,0,0,0,0,0,0,0,0,0,0,0.25,0,-0.25,0,0,0,0,0,0,0,-0.25,0,0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-2,4,-2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0.25,0,0,0,0,0,0,0,0,0,-0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,-0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.25,0,0,0,0,0,0,0,0,0,0.25,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0.25,0,-0.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5,0,-0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.25,0,0.25,0,0,0,0,0,0,0,0,0,0,0},
+	{0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+};
 
 
 void LogMinMax(CvArr* mat,std::ostream& os)
@@ -15,7 +55,7 @@ void LogMinMax(CvArr* mat,std::ostream& os)
 	os<<m<<"\t"<<M<<std::endl;
 }
 
-HarrisBuffer::HarrisBuffer(void):kparam(5e-4),sig2(8.0),tau2(2.0),delay(0),SignificantPointThresh(1E-9)
+HarrisBuffer::HarrisBuffer(void):kparam(5e-4),sig2(8.0),tau2(2.0),delay(0),SignificantPointThresh(1E-9),Border(5)
 {
 	iFrame=0;
 
@@ -23,6 +63,8 @@ HarrisBuffer::HarrisBuffer(void):kparam(5e-4),sig2(8.0),tau2(2.0),delay(0),Signi
 	SpatialMask=NULL;
 	TemporalMask1=NULL;
 	TemporalMask2=NULL;*/
+	
+	normvec=NULL;
 
 	tmp=NULL;
 	tmp1=NULL;
@@ -49,6 +91,9 @@ HarrisBuffer::~HarrisBuffer(void)
 	if(TemporalMask1) cvReleaseMat(&TemporalMask1);
 	if(TemporalMask2) cvReleaseMat(&TemporalMask2);*/
 
+	
+	if(normvec) cvReleaseMat(&normvec);
+	
 	if(tmp)		cvReleaseImage(&tmp);
 	if(tmp1)	cvReleaseImage(&tmp1);
 	if(tmp2)	cvReleaseImage(&tmp2);
@@ -71,17 +116,29 @@ HarrisBuffer::~HarrisBuffer(void)
 	if(vis)	cvReleaseImage(&Ly);
 }
 
-void HarrisBuffer::Init(IplImage* firstfrm)
+bool HarrisBuffer::Init(IplImage* firstfrm,std::string fname)
 {
 	SpatialMaskSeparable=CVUtil::GaussianMask1D(sig2);
 	TemporalMask1=CVUtil::GaussianMask1D(tau2);
 	TemporalMask2=CVUtil::GaussianMask1D(2*tau2);
 	DerivMask.push_back(-0.5);DerivMask.push_back(0.0);DerivMask.push_back(0.5);
 
-	/*int sz1=TemporalMask1->width;
-	int sz2=TemporalMask2->width;*/
+
 	int sz1=(int)TemporalMask1.size();
 	int sz2=(int)TemporalMask2.size();
+
+	if(SpatialMaskSeparable.size()<3)
+	{
+		std::cerr<<"Spacial smooting variance is too low"<<std::endl;
+		return false;
+	}
+
+	if(sz1<3 || sz2<5)
+	{
+		std::cerr<<"Temporal smooting variance is too low"<<std::endl;
+		return false;
+	}
+
 	// estimate delay in point detection (in frames)
 	if(!delay)
 		delay= (int)((sz1+sz2)/2.0) +2;
@@ -122,6 +179,57 @@ void HarrisBuffer::Init(IplImage* firstfrm)
 	Ly = cvCreateImage(cvGetSize(firstfrm),IMGTYPE ,1);
 
 	vis = cvCreateImage(cvGetSize(firstfrm),IMGTYPE ,1);
+
+	if(!fname.empty())
+		FeatureFile.open(fname.c_str());
+
+
+	//JetFilter=cvCreateMat( LengthFeatures, SizeNeighb, CV_64F );
+	cvInitMatHeader(&JetFilter,LengthFeatures,SizeNeighb,CV_64FC1,jet);
+	//Initilizing normalization vector for JET features
+	normvec= cvCreateMat( LengthFeatures, 1, CV_64F );
+	double sx1=sqrt(sig2);
+	double st1=sqrt(tau2);
+	double sx2=sx1*sx1, sx3=sx1*sx2, sx4=sx1*sx3;
+	double st2=st1*st1, st3=st1*st2, st4=st1*st3;
+	double* data=(double*) normvec->data.ptr;
+	
+	data[0]= sx1;
+	data[1]= sx1;
+	data[2]= st1;
+	data[3]= sx2;
+	data[4]= sx2;
+	data[5]= sx2;
+	data[6]= sx1*st1;
+	data[7]= sx1*st1;
+	data[8]= st2;
+	data[9]= sx3;
+	data[10]= sx3;
+	data[11]= sx3;
+	data[12]= sx3;
+	data[13]= sx2*st1;
+	data[14]= sx2*st1;
+	data[15]= sx2*st1;
+	data[16]= sx1*st2;
+	data[17]= sx1*st2;
+	data[18]= st3;
+	data[19]= sx4;
+	data[20]= sx4;
+	data[21]= sx4;
+	data[22]= sx4;
+	data[23]= sx4;
+	data[24]= sx3*st1;
+	data[25]= sx3*st1;
+	data[26]= sx3*st1;
+	data[27]= sx3*st1;
+	data[28]= sx2*st2;
+	data[29]= sx2*st2;
+	data[30]= sx2*st2;
+	data[31]= sx1*st3;
+	data[32]= sx1*st3;
+	data[33]= st4;
+
+	return true;
 }
 
 
@@ -181,16 +289,16 @@ void HarrisBuffer::ProcessFrame(IplImage* frm)
 	tstamp2=cytbuffer.TemporalConvolve(cyt, TemporalMask2);
 	tstamp2=cttbuffer.TemporalConvolve(ctt, TemporalMask2);
 
-	HarrisFunction(/*cxx, cxy, cxt, cyy, cyt, ctt, */kparam, tmp);//CVUtil::ShowRealImage("win1",tmp);
+	HarrisFunction(kparam, tmp);
 	Hbuffer.Update(tmp,tstamp2);
 	
-	LogMinMax(Hbuffer.Buffer,merd);
+	//LogMinMax(Hbuffer.Buffer,logfile);
 	//databuffer.FrameIndices.print(std::cout);
-	//databuffer.FrameIndices.print(merd);
-	//convbuffer.FrameIndices.print(merd);
-	//Hbuffer.FrameIndices.print(merd);
+	//databuffer.FrameIndices.print(logfile);
+	//convbuffer.FrameIndices.print(logfile);
+	//Hbuffer.FrameIndices.print(logfile);
 	//std::cout<<iFrame<<std::endl;
-	DetectInterestPoints();
+	DetectInterestPoints(Border);
 
 	iFrame++;
 	return;
@@ -245,40 +353,7 @@ void HarrisBuffer::HarrisFunction(double k, IplImage* dst)
         //H=detC-stharrisbuffer.kparam*trace3C;
         cvScale(tmp2,tmp2,k,0);
         cvSub(tmp1,tmp2,dst);
-
-	/*cvMul(cxx, cyy, tmp1);
-	cvMul(ctt, tmp1, tmp2);
-
-	cvMul(cxy, cxt, tmp1);
-	cvMul(cyt, tmp1, tmp3,2);
-
-	cvAdd(tmp2,tmp3,tmp4);
-
-	cvMul(cyt,cyt,tmp1);
-	cvMul(cxx,tmp1,tmp2);
-
-	cvSub(tmp4,tmp2,tmp3);
-
-	cvMul(cxy,cxy,tmp1);
-	cvMul(ctt,tmp1,tmp2);
-
-	cvSub(tmp3,tmp2,tmp4);
-
-	cvMul(cxt,cxt,tmp1);
-	cvMul(cyy,tmp1,tmp2);
-
-	cvSub(tmp4,tmp2,tmp3);
-
-	//(cxx+cyy+ctt).^3
-	cvAdd(cxx,cyy,tmp1);
-	cvAdd(ctt,tmp1,tmp2);
-	cvPow(tmp2,tmp1,(int)3);
-	
-	//H=detC-stharrisbuffer.kparam*trace3C;
-	cvScale(tmp1,tmp2,k,0);
-	cvSub(tmp2,tmp3,dst);*/
 }
-int xxx=0;
 
 IplImage* HarrisBuffer::getHBufferImage(int type)
 {
@@ -295,48 +370,61 @@ IplImage* HarrisBuffer::getHBufferImage(int type)
 	return vis;
 }
 
+void HarrisBuffer::WriteFeatures(InterestPoint &ip)
+{
+	assert(ip.features);
+	double *data=(double*)ip.features->data.ptr;
+	FeatureFile<<ip.x<<"\t"<<ip.y<<"\t"<<ip.t<<"\t"<<ip.val<<"\t";
+	for(int i=0;i<34;i++)
+		FeatureFile<<data[i]<<"\t";
+	FeatureFile<<std::endl;
+}
 
 void HarrisBuffer::DetectInterestPoints(int border)
 {
-	InterestPointList tmp;
-	Hbuffer.FindLocalMaxima(tmp);
-	ipList=tmp;
-
-	ipts<<iFrame<<":\t----------------------------------------------"<<std::endl;
-	for(int i=0;i<(int)ipList.size();i++)
-	{
-		if(ipList[i].val > SignificantPointThresh )
-		{
-			xxx++;
-		}
-		ipts <<"\t"<<ipList[i].x <<'\t'<<ipList[i].y<<'\t'<<ipList[i].t<<'\t'<<ipList[i].val<<std::endl;
-	}
-		merd<<"nf= "<<xxx<<std::endl;
-
-
-	/*CvMemStorage* storage = cvCreateMemStorage(0);
-	CvSeq* seq = cvCreateSeq( CV_32FC3, 
-							sizeof(CvSeq), 
-							sizeof(int), 
-							storage );
-	int i;
-	for( i = 0; i < 100; i++ )
-	{
-		int* added = (int*)cvSeqPush( seq, &i );
-		printf( "%d is added\n", *added );
-	}
-
-	...
-	//release memory storage in the end 
-	cvReleaseMemStorage( &storage );*/
-
+	ipList.clear();
+	Hbuffer.FindLocalMaxima(ipList,true);
+	CvMat *reg=cvCreateMat( SizeNeighb, 1, CV_64F );
+	
+		
 	//remove border
-	if(border>0)
-	{
+	if(border<2)
+		border=2; // interest points in the boundary should be remove to have a valid local 5x5x5 mask
+				  // an alternative could be extending by 2 pixel in space dimensions	
 
-	}
+	//select significant points which are not in the boundary
+	for(int i=0;i<(int)ipList.size();i++)
+		if(ipList[i].x>=border && (ipList[i].x<frame->width-border) &&
+			ipList[i].y>=border && (ipList[i].y<frame->height-border) && ipList[i].val>SignificantPointThresh)
+			ipList[i].reject=false;
+
+	//computing JET features around an interest point by 5x5x5 local mask
+	for(int i=0;i<(int)ipList.size();i++)
+		if(!ipList[i].reject)
+		{
+			ipList[i].features=cvCreateMat( LengthFeatures, 1, CV_64F );
+			convbuffer.GetLocalRegion(ipList[i].x,ipList[i].y ,ipList[i].t,5,5,5, reg);
+			cvMatMul(&JetFilter,reg,ipList[i].features);
+			cvMul(ipList[i].features,normvec,ipList[i].features);//normalization
+		}
+	cvReleaseMat(&reg);
 
 	//check tstamp for any possible error
+
+	//writing selected interest points to file
+	for(int i=0;i<(int)ipList.size();i++)
+		if(!ipList[i].reject)
+			WriteFeatures(ipList[i]);
+}		
+
+int HarrisBuffer::NumberOfDetectedIPs()
+{
+	//return ipList.size();
+	int n=0;
+	for(int i=0;i<(int)ipList.size();i++)
+		if(!ipList[i].reject)
+			n++;
+	return n;
 }
 
 void HarrisBuffer::DrawInterestPoints(IplImage* im)
@@ -345,10 +433,7 @@ void HarrisBuffer::DrawInterestPoints(IplImage* im)
 		if(ipList[0].t!=iFrame-convbuffer.BufferSize)
 			return;
 	for(int i=0;i<(int)ipList.size();i++)
-	{
-	
-		if(ipList[i].val > SignificantPointThresh )
+		if(!ipList[i].reject)
 			CVUtil::DrawCross(im,cvPoint(ipList[i].x,ipList[i].y));
-	}
 }
 
