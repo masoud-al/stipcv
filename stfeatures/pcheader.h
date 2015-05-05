@@ -4,7 +4,7 @@
 */
 
 
-
+//#define USE_CVCAM
 
 //#ifdef USE_PCH
 #include <cmath>
