@@ -4,42 +4,96 @@
 
 STBuffer::STBuffer(void):Buffer(NULL),BufferSize(0),Width(0),Height(0)
 {			
+	CreateLocalMasks();
 }
 
 STBuffer::STBuffer(int size):Buffer(NULL),Width(0),Height(0)
 {
 	Init(size);
+	CreateLocalMasks();
+}
+
+
+void STBuffer::CreateLocalMasks()
+{
+//creating neighbourhood masks
+	int s=0,i,j,k;
+	//3x3x3 mask
+	s=0;
+	for(k=-1;k<=1;k++)
+		for(i=-1;i<=1;i++)
+			for(j=-1;j<=1;j++)
+			{
+				if(i||j||k) //exclude the center of the mask
+				{
+					Neighbs3x3x3[s][0]=k;
+					Neighbs3x3x3[s][1]=i;
+					Neighbs3x3x3[s][2]=j;
+					s++;
+				}
+			}
+	//5x5x5 mask
+	s=0;
+	for(k=-2;k<=2;k++)
+		for(i=-2;i<=2;i++)
+			for(j=-2;j<=2;j++)
+			{
+				if(i||j||k) //exclude the center of the mask
+				{
+					Neighbs5x5x5[s][0]=k;
+					Neighbs5x5x5[s][1]=i;
+					Neighbs5x5x5[s][2]=j;
+					s++;
+				}
+			}
+
+
+
+	//3x3p2 mask
+	s=0;
+	for(i=-1;i<=1;i++)
+		for(j=-1;j<=1;j++)
+		{
+			if(i||j) //exclude the center of the mask
+			{
+				Neighbs3x3p2[s][0]=0;
+				Neighbs3x3p2[s][1]=i;
+				Neighbs3x3p2[s][2]=j;
+				s++;
+			}
+		}
+	Neighbs3x3p2[s][0]=1;Neighbs3x3p2[s][1]=0;Neighbs3x3p2[s][2]=0;s++;
+	Neighbs3x3p2[s][0]=-1;Neighbs3x3p2[s][1]=0;Neighbs3x3p2[s][2]=0;
+
+	//8p4 mask
+	s=0;
+	for(i=-2;i<=2;i++)
+		for(j=-2;j<=2;j++)
+		{
+			if(i||j) //exclude the center of the mask
+			{
+				Neighbs5x5p4[s][0]=0;
+				Neighbs5x5p4[s][1]=i;
+				Neighbs5x5p4[s][2]=j;
+				s++;
+			}
+		}
+	Neighbs5x5p4[s][0]=-2;Neighbs5x5p4[s][1]=Neighbs5x5p4[s][2]=0;s++;
+	Neighbs5x5p4[s][0]=-1;Neighbs5x5p4[s][1]=Neighbs5x5p4[s][2]=0;s++;
+	Neighbs5x5p4[s][0]=1;Neighbs5x5p4[s][1]=Neighbs5x5p4[s][2]=0;s++;
+	Neighbs5x5p4[s][0]=2;Neighbs5x5p4[s][1]=Neighbs5x5p4[s][2]=0;
 }
 
 STBuffer::~STBuffer(void)
 {
-	/*IplImage *tmp;
-	for (  int i=0;i<(int)Data.size();i++)
-		if(Data[i])
-		{
-			tmp=Data[i];
-			cvReleaseImage(&tmp);
-		}*/
 	if(Buffer)
 		cvReleaseMat(&Buffer);
-
 }
 
 void STBuffer::Init(const int size)
 {
 	BufferSize=size;
-	//Data.reserve(BufferSize);
 }
-
-/*IplImage* STBuffer::GetFrame(int istamp)
-{
-	int i=FrameIndices.find(istamp);
-	if(i>=0)
-		return Data[i];
-	else
-		return NULL;
-}*/
-
 
 int STBuffer::GetSingleFrame(int i,IplImage* dst)
 {
@@ -95,7 +149,7 @@ void STBuffer::Update(IplImage* newframe,   int istamp)
 		int k=FrameIndices.Add(istamp);
 		/*IplImage* pIm=Data[k];
 		cvCopy(newframe,pIm);*/
-		//M(i,j) = ((float*)(mat->data.ptr + mat->step*i))[j]
+		//M(i,j) = ((IMG_ELEM_TYPE*)(mat->data.ptr + mat->step*i))[j]
 		//cvReduce cvReshape(0,0,0);
 		assert(newframe->widthStep * newframe->height == Buffer->step);
 		memcpy((void*)(Buffer->data.ptr + Buffer->step*k) ,
@@ -117,82 +171,41 @@ int STBuffer::TemporalConvolve(IplImage* dst,std::vector<double> mask)
 
 	if(BufferSize)
 	{
-		/*IplImage* f1=(IplImage*)Data[0];
-		assert(f1->width==width);
-		assert(f1->height==height);*/
 		assert(dst->widthStep * dst->height == Buffer->step);
-		assert(BufferSize>3);
+		assert(BufferSize>=3);
 	}
 
 	assert(tfsz%2); //the size of filter should be odd
 	
 	int tstampres=FrameIndices.Middle(tfsz);
 	
-	
-	//int step = dst->widthStep/sizeof(float);  //prb:float assumption (IPL_DEPTH_32F)
-	//int n=Width*Height;
-	//todo: use OpenCV or IPL function for benefiting from SIMD instructions
-
 
 	if((int)mask.size()<BufferSize)
 		for(i=(int)mask.size();i<BufferSize;i++)
 			mask.push_back(0);
 
-	/*if(deriv)
-	{
-		int k0=Sorted[0];int k2=Sorted[2];
-		float *D0 = (float*)((IplImage*)Data[k0])->imageData;
-		float *D2 = (float*)((IplImage*)Data[k2])->imageData;
-		float *Ds=(float*)dst->imageData;
-		for(i=0;i<n;i++)
-			//dst->imageData[i] = ( ((IplImage*)Data[k2])->imageData[i] - ((IplImage*)Data[k0])->imageData[i] ) / 2.0f; 
-			Ds[i] = (D2[i]-D0[i])/2.0f;
-		
-	}*/
+	
 
 
 
 	std::vector<int> Sorted =FrameIndices.GetSortedIndices();
 
-	//return tstampres;
-
 	CvMat *fil=cvCreateMat(1,BufferSize,DATATYPE);
 	assert(BufferSize==(int)mask.size()); //filter is too big (it could be cut)
-	float* filter=new float[BufferSize];
-	/*for(k=0;k<tfsz;k++)
-		//((float*)(mask->data.ptr + mat->step*i))[j]
-		//CV_MAT_ELEM(mask,float,0,k)
-		filter[k]=((float*)(mask->data.ptr))[k];*/
+	IMG_ELEM_TYPE* filter=new IMG_ELEM_TYPE[BufferSize];
+	
 	for(i=0;i<BufferSize;i++)
-		//filter[i]=((float*)(mask->data.ptr))[i];
-		//filter[Sorted[i]]=((float*)(mask->data.ptr))[i];
-		filter[Sorted[i]]=(float)mask[i];
+		filter[Sorted[i]]=(IMG_ELEM_TYPE)mask[i];
 
 	for(i=0;i<BufferSize;i++)
-		//CV_MAT_ELEM(fil,float,0,i)=filter[i];
 		cvmSet(fil,0,i, filter[i]);
 
-	/*float *Ds=(float*)dst->imageData;
-	for(i=0;i<n;i++)
-	{
-		//I(x,y) ~ ((float*)(img->imageData + img->widthStep*y))[x]
-
-		Ds[i]=0;
-		for(k=0;k<tfsz;k++)
-		{
-			float *D = (float*)((IplImage*)Data[k])->imageData;
-			Ds[i] += filter[k] *  D[i];
-			//todo : correct casting
-			//dst->imageData[4*i] +=filter[k] *  d[i];
-		}
-	}*/
 
 	
 	CvMat *rdst, dsthdr;
 	rdst = cvReshape(dst,&dsthdr,0,1);
 	cvMatMul(fil,Buffer,rdst);
-	
-	//memcpy((void*)dst->imageData, res->data.ptr, Buffer->step);//costly
+
 
 	delete[] filter;
 	
@@ -200,73 +213,121 @@ int STBuffer::TemporalConvolve(IplImage* dst,std::vector<double> mask)
 	return tstampres;
 }
 
-void STBuffer::FindLocalMaxima(InterestPointList& pts)
+ 
+void STBuffer::GetLocalRegion(int x,int y,int t, 
+							  int nx,int ny,int nt,	CvMat* rm)
 {
-	int cols=Width;
-	int rows=Height;
-	int cc=rows*cols;
-	float *D = (float*)Buffer->data.ptr; //prb: if datatype changes 
-	//M(k,u) = D+k*cc+u
-	//T(i,j) =  i*cols+j
-#define MM(k,i,j)  *(D + (k)*(cc) + (i)*(cols)+(j) )
+	assert(nx%2);
+	assert(ny%2);
+	assert(nt%2);
+	assert(rm);
+	assert( (rm->rows==nx*ny*nt && rm->cols==1) ||  
+		    (rm->cols==nx*ny*nt && rm->rows==1) );
 
-	int i,j,k,s,l,n;
-	float v;
-
+	t=FrameIndices.find(t);
 	
-	//3x3x3 mask
-	const int ns=27;
-	int neighbs[ns][3];
-	s=0;
-	for(k=-1;k<=1;k++)
-		for(i=-1;i<=1;i++)
-			for(j=-1;j<=1;j++)
-			{
-				neighbs[s][0]=k;
-				neighbs[s][1]=i;
-				neighbs[s][2]=j;
-				s++;
-			}
+	int dx=nx/2,dy=ny/2,dt=nt/2;
+	int i,j,k,s;
 
-	 //8x2 mask
-	/*const int ns=11;
-	int neighbs[ns][3];
-	s=0;
-	for(i=-1;i<=1;i++)
-		for(j=-1;j<=1;j++)
-		{
-			neighbs[s][0]=0;
-			neighbs[s][1]=i;
-			neighbs[s][2]=j;
-			s++;
-		}
-	neighbs[s][0]=1;neighbs[s][1]=0;neighbs[s++][2]=0;
-	neighbs[s][0]=-1;neighbs[s][1]=0;neighbs[s++][2]=0;*/
 	
 	std::vector<int> Sorted =FrameIndices.GetSortedIndices();
 	int *SI=new int[Sorted.size()];
 	for(s=0;s<(int)Sorted.size();s++) SI[s]=Sorted[s];
 
-	l=0;InterestPoint pt;
-	for(k=1;k<BufferSize-1;k++)
-		for(i=1;i<rows-1;i++)
-			for(j=1;j<cols-1;j++)
+#ifdef DEBUG
+	if(!(x>dx && x<Width-dx))
+		printf("problem in X\\n");
+
+	if(!(y>dy && y<Height-dy))
+		printf("problem in Y\\n");
+
+	if(!(SI[t]>dt && SI[t]<BufferSize-dt))
+		printf("problem in T: %d\\n",t);
+#endif
+
+	assert(x>dx && x<Width-dx);
+	assert(y>dy && y<Height-dy);
+	assert(SI[t]>dt && SI[t]<BufferSize-dt);
+
+/* in MEX 3D-Array  M(i,j,k) with size [rows cols depth]
+ linearized: k*rows*cols+ j * rows + i
+*/
+	int cols=Width;
+	int rows=Height;
+	int cc=rows*cols;
+	IMG_ELEM_TYPE *D = (IMG_ELEM_TYPE*)Buffer->data.ptr; //prb: if DATATYPE changes 
+#define NN(k,i,j)  *(D + (k)*(cc) + (i)*(cols)+(j) )
+
+	IMG_ELEM_TYPE kir;
+	double *dat=(double*)rm->data.ptr;	
+	for(k=0;k<nt;k++)
+		for(i=0;i<nx;i++)
+			for(j=0;j<ny;j++)
+			{
+				kir=NN(SI[t]+k-dt,x+i-dx,y+j-dy);//????????  or SI[t+k-dt]
+				dat[k*nx*ny+j*nx+i]=kir;
+			}	
+	delete[] SI;
+}
+
+void STBuffer::FindLocalMaxima(InterestPointList& pts,bool full)
+{
+	int cols=Width;
+	int rows=Height;
+	int cc=rows*cols;
+	IMG_ELEM_TYPE *D = (IMG_ELEM_TYPE*)Buffer->data.ptr; //prb: if DATATYPE changes 
+#define MM(k,i,j)  *(D + (k)*(cc) + (i)*(cols)+(j) )
+
+	int i,j,k,s,n;
+	IMG_ELEM_TYPE v;
+
+	int db;//exclude borders
+	int ns;//number of neighbours in the mask
+	int *neighbs;// pointer to the mask array
+
+	//choosing the right neighbour mask
+	/*if(BufferSize>=5)
+	{
+		db=2;
+		if(full){
+			ns=124; neighbs=(int*)Neighbs3x3x3;
+		}
+		else{
+			ns=28; neighbs=(int*)Neighbs5x5p4;
+		}
+	}
+	else*/
+	{
+		db=1;
+		if(full){
+			ns=26; neighbs=(int*)Neighbs3x3x3;
+		}
+		else{
+			ns=10; neighbs=(int*)Neighbs3x3p2;
+		}
+	}
+	
+		
+	std::vector<int> Sorted =FrameIndices.GetSortedIndices();
+	int *SI=new int[Sorted.size()];
+	for(s=0;s<(int)Sorted.size();s++) SI[s]=Sorted[s];
+
+	InterestPoint pt;
+	for(k=db;k<BufferSize-db;k++)
+		for(i=db;i<rows-db;i++)
+			for(j=db;j<cols-db;j++)
 			{
 				s=0;
 				v=MM(SI[k],i,j);
 				for(n=0;n<ns;n++)
-					if ( v > MM(SI[neighbs[n][0]+k], neighbs[n][1]+i, neighbs[n][2]+j) )
+					//if ( v > MM(SI[neighbs[n][0]+k], neighbs[n][1]+i, neighbs[n][2]+j) )
+					if ( v > MM(SI[neighbs[3*n+0]+k], neighbs[3*n+1]+i, neighbs[3*n+2]+j) )
 						s++;
-				if(s==ns-1)
+				if(s==ns)//local maxima
 				{
 					pt.x=j;pt.y=i;pt.t=FrameIndices.get(SI[k]);pt.val=v;
 					pts.push_back(pt);
-					l++;//add
 				}
 			}
-	l++;
-	//std::cout<<l<<std::endl;
 	delete[] SI;
 }
-
-
